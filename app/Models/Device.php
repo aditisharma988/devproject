@@ -4,46 +4,62 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Device extends Model
 {
     use HasFactory;
 
-
-    protected $fillable = [
-        'address',//http,https
-        'label',
-        'template',//uuid template
-        'lines', //'lines' array
-        'enabled',
-        'description',
-    ];
+    protected $table = 'v_devices';
+    protected $primaryKey = 'device_uuid'; 
+    protected $keyType = 'string'; 
+    public $incrementing = false; 
 
     /**
-     * The validation rules.
+     * The attributes that are mass assignable.
      *
      * @var array
      */
-    public static $rules = [
-        'address' => 'required|url|in:http,https',
-        'label' => 'required|string',
-        'template' => 'required|uuid',
-        'lines' => 'required|array|max:8',
-        'lines.*.line' => 'required|integer|min:1|max:18',
-        'lines.*.server_address' => 'required|url',
-        'lines.*.label' => 'required|string',
-        'lines.*.display_name' => 'required|string',
-        'lines.*.user_id' => 'required|string',
-        'lines.*.auth_id' => 'required|string',
-        'lines.*.password' => 'required|string',
-        'lines.*.port_no' => 'required|integer',
-        'lines.*.transport' => 'required|in:TCP,UDP,TLS',
-        'lines.*.register_expires' => 'required|integer',
-        'lines.*.shared_line' => 'required|boolean',
-        'lines.*.enabled' => 'required|boolean',
-        'enabled' => 'required|boolean',
-        'description' => 'required|string',
-
+    protected $fillable = [
+     
+        'device_address',
+        'device_label',
+        'device_model',
+        'device_enabled',
+        'device_template',
+        'device_description',
+ 
     ];
 
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'device_enabled_date' => 'datetime',
+        'device_provisioned_date' => 'datetime',
+        'device_enabled' => 'boolean',
+    ];
+
+        // Disable timestamps
+        public $timestamps = false;
+
+    /**
+     * Boot function for using with UUIDs
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            $model->{$model->getKeyName()} = Str::uuid()->toString();
+        });
+    }
+
+      // Define the one-to-many relationship with v_device_lines
+      public function lines()
+      {
+          return $this->hasMany(DeviceLine::class, 'device_uuid', 'device_uuid');
+      }
 }

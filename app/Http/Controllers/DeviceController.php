@@ -4,6 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Device;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+
+
 
 class DeviceController extends Controller
 {
@@ -18,80 +23,118 @@ class DeviceController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'address' => 'required|url|in:http,https',
-            'label' => 'required|string',
-            'template' => 'required|uuid',
-            'lines' => 'required|array|max:8',
-            'lines.*.line' => 'required|integer|min:1|max:18',
-            'lines.*.server_address' => 'required|url',
-            'lines.*.label' => 'required|string',
-            'lines.*.display_name' => 'required|string',
-            'lines.*.user_id' => 'required|string',
-            'lines.*.auth_id' => 'required|string',
-            'lines.*.password' => 'required|string',
-            'lines.*.port_no' => 'required|integer',
-            'lines.*.transport' => 'required|in:TCP,UDP,TLS',
-            'lines.*.register_expires' => 'required|integer',
-            // 'lines.*.shared_line' => 'required|boolean',
-            'lines.*.enabled' => 'required|boolean',
-            'enabled' => 'required|boolean',
-            'description' => 'nullable|string',
-        ]);
-
-        $device = Device::create($request->all());
-
-        return response()->json($device, 201);
     
+     public function store(Request $request)
+     {
+         $input = $request->validate([
+             'device_address' => ['required', 'mac_address'],
+             'device_label' => ['required', 'string', 'max:40'],
+             'device_template' => ['required', 'uuid'],
+             'device_enabled' => ['required', 'boolean'],
+             'device_description' => ['nullable', 'string', 'max:255'],
+             'lines' => ['required', 'array', 'max:8'],
+             'lines.*.line_number' => ['required', 'integer', 'min:1', 'max:18'],
+             'lines.*.server_address' => ['required', 'ipv4'],
+             'lines.*.label' => ['required', 'string'],
+             'lines.*.display_name' => ['required', 'string' ,'max:40'],
+             'lines.*.user_id' => ['required', 'string'],
+             'lines.*.auth_id' => ['required', 'string'],
+             'lines.*.password' =>  ['required', 'string'],
+             'lines.*.sip_port' => ['required', 'integer','min:1','max:65535'],
+             'lines.*.sip_transport' => ['required', Rule::in(['TCP', 'UDP', 'TLS'])],
+             'lines.*.register_expires' => ['required', 'integer','min:30'],
+             'lines.*.shared_line' => ['required', 'boolean'],
+             'lines.*.enabled' => ['required', 'boolean'],
+         ]);
+     
+         $input['device_uuid'] = Str::uuid();
+
+         $input['device_line_uuid'] = Str::uuid();
+     
+         $device = Device::create($input);
+
+         foreach ($input['lines'] as $lineData){
+             $line = $device->lines()->create($lineData);
+         }
+     
+         return response()->json([
+            'message' => trans('messages.DEVICEDATA_NOT_STORED'),
+        ], 404);
+     }
+
     
-    }
 
     /**
      * Display the specified resource.
      */
-    public function show(Device $device)
-    {
-        return $device;
-    }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Device $device)
+     public function show(string $deviceId): JsonResponse
+     {
+         $device = Device::find($deviceId);
+     
+         if (!$device) {
+             return response()->json([
+                 'error' => trans('messages.NOT_FOUND')], 404);
+         }
+     
+         return response()->json([
+             'message' => trans('messages.DEVICEDATA_FETCHED_SUCCESSFULLY'),
+             'data' => $device,
+         ], 200);
+     }
+    
+
+    public function update(Request $request, string $deviceId)
     {
-        $request->validate([
-            'address' =>'url'|'in:http,https',
-            'label' =>'string',
-            'template' =>'uuid',
-            'lines' => 'array|max:8',
-            'lines.*.line' => 'nullable|integer|min:1|max:18',
-            'lines.*.server_address' => 'nullable|url',
-            'lines.*.label' => 'nullable|string',
-            'lines.*.display_name' => 'nullable|string',
-            'lines.*.user_id' => 'nullable|string',
-            'lines.*.auth_id' => 'nullable|string',
-            'lines.*.password' => 'nullable|string',
-            'lines.*.port_no' => 'nullable|integer',
-            'lines.*.transport' => 'nullable|in:TCP,UDP,TLS',
-            'lines.*.register_expires' => 'nullable|integer',
-            'lines.*.shared_line' => 'nullable|boolean',
-            'lines.*.enabled' => 'nullable|boolean',
-            'enabled' =>'boolean',
-            'description' =>'nullable|string',
+        $device = Device::find($deviceId);
+    
+        if (!$device) {
+            return response()->json(['error' => trans('DEVICEDATA_NOT_FOUND')], 404);
+        }
+    
+        $input = $request->validate([
+            'device_address' => ['required', 'mac_address'],
+            'device_label' => ['required', 'string', 'max:40'],
+            'device_template' => ['required', 'uuid'],
+            'device_enabled' => ['required', 'boolean'],
+            'device_description' => ['nullable', 'string', 'max:255'],
+            'lines' => ['nullable', 'array', 'max:8'],
+            'lines.*.line_number' => ['required_with:lines', 'integer', 'min:1', 'max:18'],
+            'lines.*.server_address' => ['required_with:lines', 'ipv4'],
+            'lines.*.label' => ['required_with:lines', 'string'],
+            'lines.*.display_name' => ['required_with:lines', 'string', 'max:40'],
+            'lines.*.user_id' => ['required_with:lines', 'string'],
+            'lines.*.auth_id' => ['required_with:lines', 'string'],
+            'lines.*.password' => ['required_with:lines', 'string'],
+            'lines.*.sip_port' => ['required_with:lines', 'integer', 'min:1', 'max:65535'],
+            'lines.*.sip_transport' => ['required_with:lines', Rule::in(['TCP', 'UDP', 'TLS'])],
+            'lines.*.register_expires' => ['required_with:lines', 'integer', 'min:30'],
+            'lines.*.shared_line' => ['required_with:lines', 'boolean'],
+            'lines.*.enabled' => ['required_with:lines', 'boolean'],
         ]);
+    
+        $device->fill($input);
 
-        $device->update($request->all());
-        return response()->json($device,200);
+        if (isset($input['lines'])) {
+            $linesData = $input['lines'];
+            foreach ($linesData as $lineData) {
+                // $line = $device->lines()->create($lineData);
+                $line = $device->lines()->update($lineData);
+            }
+        }
+        $device->save();
+    
+        return response()->json(['message' => trans('DEVICEDATA_UPDATED_SUCCESSFULLY'), 'data' => $device], 200);
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Device $device)
+               
+               
+    public function destroy(Device $device,string $deviceId)
     {
+       $device = Device::find($deviceId);
+
         $device->delete();
-        return response()->json(null,204);
-    }
-}
+   
+        
+    return response()->json([ 
+        'message' => trans('CANNOT_DELETE_DEVICEDATA')], 401);
+     }}
