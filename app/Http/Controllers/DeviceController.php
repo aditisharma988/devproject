@@ -7,22 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-
+use App\Http\Resources\DeviceResource;
+use App\Http\Resources\DeviceLineResource;
 
 
 class DeviceController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        return Device::all();
+        $devices = Device::with('lines')->get();
+        return DeviceResource::collection($devices);
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     
      public function store(Request $request)
      {
@@ -58,15 +53,9 @@ class DeviceController extends Controller
          }
      
          return response()->json([
-            'message' => trans('messages.DEVICEDATA_NOT_STORED'),
-        ], 404);
+            'message' => trans('messages.DEVICEDATA_STORED'),
+        ], 200);
      }
-
-    
-
-    /**
-     * Display the specified resource.
-     */
 
      public function show(string $deviceId): JsonResponse
      {
@@ -78,8 +67,8 @@ class DeviceController extends Controller
          }
      
          return response()->json([
-             'message' => trans('messages.DEVICEDATA_FETCHED_SUCCESSFULLY'),
-             'data' => $device,
+             'message' => trans('DEVICEDATA_FETCHED_SUCCESSFULLY'),
+             'data' => new DeviceResource($device),
          ], 200);
      }
     
@@ -99,7 +88,7 @@ class DeviceController extends Controller
             'device_enabled' => ['required', 'boolean'],
             'device_description' => ['nullable', 'string', 'max:255'],
             'lines' => ['nullable', 'array', 'max:8'],
-            'lines.*.line_number' => ['required_with:lines', 'integer', 'min:1', 'max:18'],
+            'lines.*.line_number' => ['required_with:lines', 'integer', 'min:1', 'max:18','distinct'],
             'lines.*.server_address' => ['required_with:lines', 'ipv4'],
             'lines.*.label' => ['required_with:lines', 'string'],
             'lines.*.display_name' => ['required_with:lines', 'string', 'max:40'],
@@ -114,17 +103,22 @@ class DeviceController extends Controller
         ]);
     
         $device->fill($input);
+    
+        $distinctLineNumbers = collect($input['lines'])->pluck('line_number')->toArray();
+        $device->lines()->whereNotIn('line_number', $distinctLineNumbers)->delete();
 
         if (isset($input['lines'])) {
             $linesData = $input['lines'];
+
             foreach ($linesData as $lineData) {
-                // $line = $device->lines()->create($lineData);
-                $line = $device->lines()->update($lineData);
+                $line = $device->lines()->updateOrCreate(['line_number' => $lineData['line_number']], $lineData);
             }
-        }
+       }
         $device->save();
     
-        return response()->json(['message' => trans('DEVICEDATA_UPDATED_SUCCESSFULLY'), 'data' => $device], 200);
+        return response()->json(['message' => trans('DEVICEDATA_UPDATED_SUCCESSFULLY'),
+         'data' => new DeviceResource($device),
+         'lines' => DeviceLineResource::collection($device->lines),], 200);
     }
                
                
@@ -133,8 +127,6 @@ class DeviceController extends Controller
        $device = Device::find($deviceId);
 
         $device->delete();
-   
-        
     return response()->json([ 
-        'message' => trans('CANNOT_DELETE_DEVICEDATA')], 401);
+        'message' => trans('DEVICEDATA_DELETED_SUCCESSFULLY')], 200);
      }}
