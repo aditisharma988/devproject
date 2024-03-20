@@ -44,7 +44,7 @@ class DeviceController extends Controller
      
          $input['device_uuid'] = Str::uuid();
 
-         $input['device_line_uuid'] = Str::uuid();
+       
      
          $device = Device::create($input);
 

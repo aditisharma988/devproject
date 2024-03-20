@@ -1,0 +1,6 @@
+{
+    "SUCCESS": "Success",
+    "EMAIL_TEMPLATE_CREATED": "Mail Template is created sucessfully.",
+    "EMAIL_TEMPLATE_UPDATED": "Mail Template is updated sucessfully.",
+    "EMAIL_TEMPLATE_DELETED": "Mail Template is deleted sucessfully."
+}

@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\EmailTemplatesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,7 +16,4 @@ use App\Http\Controllers\DeviceController;
 |
 */
 Route::apiResource('v-devices', DeviceController::class);
-
-
-
-
+Route::apiResource('v-emails', EmailTemplatesController::class);
